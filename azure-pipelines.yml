@@ -1,0 +1,57 @@
+# .NET Desktop
+# Build and run tests for .NET Desktop or Windows classic desktop solutions.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/windows/dot-net
+
+name: $(Version)$(Rev:.r)
+
+#trigger:
+#  batch: true
+#  branches:
+#    include:
+#    - master
+#  paths:
+#    include:
+#    - clickOnce
+
+queue:
+  name: Azure Pipelines
+  demands: 
+  - vs2017-win2016
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'AnyCpu'
+  buildConfiguration: 'Release'
+  Version: '2.0.0'
+
+steps:
+- task: NuGetToolInstaller@0
+
+- task: richardfennellBM.BM-VSTS-Versioning-Task.Version-Assemblies-Task.VersionAssemblies@2
+  displayName: 'Version Assemblies'
+
+- task: NuGetCommand@2
+  inputs:
+    restoreSolution: '$(solution)'
+    vstsFeed: '9c1c74b4-6724-4cf1-8a95-652e1df211fe'
+
+- task: VSBuild@1
+  inputs:
+    solution: 'ClickOnce/ClickOnce.csproj'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    maximumCpuCount: true
+
+- task: CopyFiles@2
+  displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+  inputs:
+    SourceFolder: 'ClickOnce/bin/$(BuildPlatform)/$(BuildConfiguration)'
+    Contents: '**\*'
+    TargetFolder: '$(build.artifactstagingdirectory)'
+
+- task: PublishPipelineArtifact@0
+  displayName: 'Publish Artifact: drop'
+  condition: ne(variables['Build.Reason'], 'PullRequest')
+  inputs:
+    targetPath: '$(build.artifactstagingdirectory)'
